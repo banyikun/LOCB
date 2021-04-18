@@ -43,4 +43,4 @@ num_seeds: the number of seeds for LOCB
 
 detect_cluster: '0' for the regret comparison and output regret; '1' for detecting clusters and output clustering accuracy
 
-Reference:
+## Reference:
