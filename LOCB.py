@@ -1,23 +1,19 @@
-
 from collections import defaultdict
 import numpy as np
-import time
 import random
-from scipy.stats import ortho_group
-from Environment import Environment
-from utlis import generate_items, edge_probability
 import sys 
-
+import networkx as nx
+from Environment import is_power2, isInvertible
 
 
 
 class Base:
-    # Base agent for LOCB
     def __init__(self, d, T):
         self.d = d
         self.T = T
         self.rewards = np.zeros(self.T)
         self.best_rewards = np.zeros(self.T)
+        self.stop = 0
 
     def _beta(self, N, t):
         return np.sqrt(self.d * np.log(1 + N / self.d) + 4 * np.log(t) + np.log(2)) + 1
@@ -26,8 +22,6 @@ class Base:
         return np.argmax(np.dot(items, theta) + self._beta(N, t) * (np.matmul(items, Sinv) * items).sum(axis = 1))
 
     def recommend(self, i, items, t):
-        # items is of type np.array (L, d)
-        # select one index from items to user i
         return
 
     def store_info(self, i, x, y, t, r, br):
@@ -54,7 +48,8 @@ class Base:
             self.store_info(i=i, x=x, y=y, t=t, r=r, br=br)
             self.update_LOCB(i, t) 
             self.update(i, t)
-
+            if self.stop:
+                break
 
 
 class Cluster:
@@ -69,22 +64,22 @@ class Cluster:
 
 class LOCB(Base):
     # each user is an independent LinUCB
-    def __init__(self, nu, d, T, gamma, num_seeds):
+    def __init__(self, nu, d, T, gamma, num_seeds, delta, detect_cluster):
         super(LOCB, self).__init__(d, T)
         self.S = {i:np.eye(d) for i in range(nu)}
         self.b = {i:np.zeros(d) for i in range(nu)}
         self.Sinv = {i:np.eye(d) for i in range(nu)}
         self.theta = {i:np.zeros(d) for i in range(nu)}
         self.users = range(nu)
+        
         self.seeds = np.random.choice(self.users, num_seeds)
         self.seed_state = {}
         for seed in self.seeds:
             self.seed_state[seed] = 0
-            
-        print('seed', self.seeds)
         self.clusters = {}
         for seed in self.seeds: 
             self.clusters[seed] = Cluster(users=self.users, S=np.eye(d), b=np.zeros(d), N=1)
+            
         self.N = np.zeros(nu)
         self.gamma = gamma
         self.results = []
@@ -98,23 +93,22 @@ class LOCB(Base):
         self.d = d
         self.n = nu
         self.selected_cluster = 0 
-        self.delta = 0.1
+        self.delta = delta
+        self.if_d = detect_cluster
+        
+    
 
     def recommend(self, i, items, t):
         cls = self.cluster_inds[i]
-        if len(cls)>3:
+        if (len(cls)>0) and (t <40000):
             res = []
             for c in cls:
                 cluster = self.clusters[c]
                 res_sin = self._select_item_ucb(cluster.S,cluster.Sinv, cluster.theta, items, cluster.N, t)
                 res.append(res_sin)
             best_cluster = max(res)
-            if t%20000 ==0:
-                print('best:',best_cluster)
-                print('current clusters:', cls)
             return best_cluster[1]
         else:
-            #print(best_cluster)
             no_cluster = self._select_item_ucb(self.S[i], self.Sinv[i], self.theta[i], items, self.N[i], t)
             return no_cluster[1]
   
@@ -140,7 +134,6 @@ class LOCB(Base):
             self.clusters[c].S += np.outer(x, x)
             self.clusters[c].b += y * x
             self.clusters[c].N += 1
-            
             self.clusters[c].Sinv = np.linalg.inv(self.clusters[c].S)
             self.clusters[c].theta = np.matmul(self.clusters[c].Sinv, self.clusters[c].b)
             
@@ -148,23 +141,20 @@ class LOCB(Base):
         
     
     def update_LOCB(self, i, t):
-        def _factT(T):
-            delta = 6*self.delta / (self.n * np.pi * np.pi * t * t)
-            nu = np.sqrt(2*self.d*np.log(1 + t) + 2*np.log(2/delta)) +1
-            de = np.sqrt(1+T/8)*np.power(self.n, 1/3)
-            return nu/de
         def _factT(m):
-            return np.sqrt((1 + np.log(1 + m)) / (1 + m))
+            if self.if_d:
+                delta = self.delta / self.n
+                nu = np.sqrt(2*self.d*np.log(1 + t) + 2*np.log(2/delta)) +1
+                de = np.sqrt(1+m/4)*np.power(self.n, 1/3)
+                return nu/de
+            else:
+                return np.sqrt((1 + np.log(1 + m)) / (1 + m))
         
         if not self.fin:
     
-            if t%10000 ==0:
-                print('seed bound', _factT(self.N[0]), 'round:', t)
-                #for seed in self.seeds:
-                print(self.cluster_inds[i])
+            if t%1000 ==0:
+                print('running round:', t)
               
-                
-
             for seed in self.seeds:
                 if not self.seed_state[seed]:
                     if i in self.clusters[seed].users:
@@ -175,6 +165,7 @@ class LOCB(Base):
                             self.clusters[seed].S = self.clusters[seed].S - self.S[i] + np.eye(self.d)
                             self.clusters[seed].b = self.clusters[seed].b - self.b[i]
                             self.clusters[seed].N = self.clusters[seed].N - self.N[i]
+                            
                     else:
                         diff = self.theta[i] - self.theta[seed]
                         if np.linalg.norm(diff) < _factT(self.N[i]) + _factT(self.N[seed]):
@@ -183,9 +174,11 @@ class LOCB(Base):
                             self.clusters[seed].S = self.clusters[seed].S + self.S[i] - np.eye(self.d)
                             self.clusters[seed].b = self.clusters[seed].b + self.b[i]
                             self.clusters[seed].N = self.clusters[seed].N + self.N[i]
-          
-                         
-                    if _factT(self.N[seed]) <= (self.gamma/4):
+                
+                    if self.if_d: thre = self.gamma 
+                    else: thre = self.gamma/4
+                        
+                    if _factT(self.N[seed]) <= thre:
                         self.seed_state[seed] = 1
                         self.results.append({seed:list(self.clusters[seed].users)}) 
 
@@ -193,7 +186,15 @@ class LOCB(Base):
             for i in self.seed_state.values():
                 if i ==0:
                     finished =0
+                    
             if finished: 
+                if self.if_d:
+                    np.save('./results/clusters', self.results)
+                    print('Clustering finished! Round:', t)
+                    self.stop = 1
                 self.fin = 1
-                #print(" finished clustering")
 
+
+                    
+                                
+ 
