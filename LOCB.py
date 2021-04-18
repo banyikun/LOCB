@@ -40,7 +40,7 @@ class Base:
 
     def run(self, envir):
         for t in range(1, self.T):
-            i = t%envir.nu
+            i = t%envir.nu # obtain user
             items = envir.get_items()
             kk = self.recommend(i=i, items=items, t=t)
             x = items[kk]

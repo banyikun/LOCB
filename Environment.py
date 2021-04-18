@@ -49,7 +49,6 @@ def evaluate_clustering(groups, groups_l):
 
 
 class Environment:
-    # p: frequency vector of users
     def __init__(self, L, d, m, num_users, p, theta):
         self.L = L
         self.d = d
@@ -60,17 +59,23 @@ class Environment:
         self.nu = num_users
 
     def get_items(self):
+        # obtain arms
+        
         self.items = generate_items(num_items = self.L, d = self.d)
         return self.items
 
     def feedback(self, i, k):
+        # obtain rewards
+        
         x = self.items[k, :]
         r = np.dot(self.theta[i], x)
         y = np.random.binomial(1, r)
         br = get_best_reward(self.items, self.theta[i])
         return y, r, br
 
-    def generate_users(self):
+    def obtain_users(self):
+        #obtains
+        
         X = np.random.multinomial(1, self.p)
         I = np.nonzero(X)[0]
         return I
