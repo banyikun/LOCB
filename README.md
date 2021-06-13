@@ -44,3 +44,13 @@ num_seeds: the number of seeds for LOCB
 detect_cluster: '0' for the regret comparison and output regret; '1' for detecting clusters and output clustering accuracy
 
 ## Reference:
+
+### If this paper is inspirational to you, please kindly cite this paper.
+
+@inproceedings{ban2021local,  
+  title={Local Clustering in Contextual Multi-Armed Bandits},  
+  author={Ban, Yikun and He, Jingrui},  
+  booktitle={Proceedings of the Web Conference 2021},  
+  pages={2335--2346},  
+  year={2021}  
+}  
