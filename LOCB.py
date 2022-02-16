@@ -2,8 +2,7 @@ from collections import defaultdict
 import numpy as np
 import random
 import sys 
-import networkx as nx
-from Environment import is_power2, isInvertible
+import networkx as 
 
 
 class Cluster:
