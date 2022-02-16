@@ -2,7 +2,7 @@ from collections import defaultdict
 import numpy as np
 import random
 import sys 
-import networkx as 
+import networkx as nx
 
 
 class Cluster:
