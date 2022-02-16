@@ -6,52 +6,6 @@ import networkx as nx
 from Environment import is_power2, isInvertible
 
 
-
-class Base:
-    def __init__(self, d, T):
-        self.d = d
-        self.T = T
-        self.rewards = np.zeros(self.T)
-        self.best_rewards = np.zeros(self.T)
-        self.stop = 0
-
-    def _beta(self, N, t):
-        return np.sqrt(self.d * np.log(1 + N / self.d) + 4 * np.log(t) + np.log(2)) + 1
-
-    def _select_item_ucb(self, S, Sinv, theta, items, N, t):
-        return np.argmax(np.dot(items, theta) + self._beta(N, t) * (np.matmul(items, Sinv) * items).sum(axis = 1))
-
-    def recommend(self, i, items, t):
-        return
-
-    def store_info(self, i, x, y, t, r, br):
-        return
-
-    def _update_inverse(self, S, b, Sinv, x, t):
-        Sinv = np.linalg.inv(S)
-        theta = np.matmul(Sinv, b)
-        return Sinv, theta
-
-    def update(self, i, t):
-        return
-        
-    def update_LOCB(self, i, t):
-        return
-
-    def run(self, envir):
-        for t in range(1, self.T):
-            i = t%envir.nu # obtain user
-            items = envir.get_items()
-            kk = self.recommend(i=i, items=items, t=t)
-            x = items[kk]
-            y, r, br = envir.feedback(i=i, k=kk)
-            self.store_info(i=i, x=x, y=y, t=t, r=r, br=br)
-            self.update_LOCB(i, t) 
-            self.update(i, t)
-            if self.stop:
-                break
-
-
 class Cluster:
     def __init__(self, users, S, b, N):
         self.users = set(users) # a list/array of users
@@ -62,10 +16,8 @@ class Cluster:
         self.theta = np.matmul(self.Sinv, self.b)
 
 
-class LOCB(Base):
-    # each user is an independent LinUCB
-    def __init__(self, nu, d, T, gamma, num_seeds, delta, detect_cluster):
-        super(LOCB, self).__init__(d, T)
+class LOCB:
+    def __init__(self, nu, d, gamma, num_seeds, delta, detect_cluster):
         self.S = {i:np.eye(d) for i in range(nu)}
         self.b = {i:np.zeros(d) for i in range(nu)}
         self.Sinv = {i:np.eye(d) for i in range(nu)}
@@ -96,6 +48,17 @@ class LOCB(Base):
         self.delta = delta
         self.if_d = detect_cluster
         
+    def _beta(self, N, t):
+        return np.sqrt(self.d * np.log(1 + N / self.d) + 4 * np.log(t) + np.log(2)) + 1
+
+    def _select_item_ucb(self, S, Sinv, theta, items, N, t):
+        return np.argmax(np.dot(items, theta) + self._beta(N, t) * (np.matmul(items, Sinv) * items).sum(axis = 1))
+
+
+    def _update_inverse(self, S, b, Sinv, x, t):
+        Sinv = np.linalg.inv(S)
+        theta = np.matmul(Sinv, b)
+        return Sinv, theta
     
 
     def recommend(self, i, items, t):
@@ -120,9 +83,7 @@ class LOCB(Base):
         return (res, it)
         
 
-    def store_info(self, i, x, y, t, r, br):
-        self.rewards[t] += r
-        self.best_rewards[t] += br
+    def store_info(self, i, x, y, t):
         
         self.S[i] += np.outer(x, x)
         self.b[i] += y * x
@@ -140,7 +101,7 @@ class LOCB(Base):
 
         
     
-    def update_LOCB(self, i, t):
+    def update(self, i, t):
         def _factT(m):
             if self.if_d:
                 delta = self.delta / self.n
@@ -151,9 +112,7 @@ class LOCB(Base):
                 return np.sqrt((1 + np.log(1 + m)) / (1 + m))
         
         if not self.fin:
-    
-            if t%1000 ==0:
-                print('running round:', t)
+
               
             for seed in self.seeds:
                 if not self.seed_state[seed]:
@@ -193,7 +152,6 @@ class LOCB(Base):
                     print('Clustering finished! Round:', t)
                     self.stop = 1
                 self.fin = 1
-
 
                     
                                 
