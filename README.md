@@ -6,22 +6,16 @@ We study identifying user clusters in contextual multi-armed bandits (MAB). Cont
 
 
 ### Requirements
-
 Python 3.7
 numpy
 networkx
 
 ### Command
-The following commands report ther results on the synthetic dataset.
+python main.py --dataset yelp
+python main.py --dataset movie
 
-#### Default:
 
-For regret analysis:
-python3 main.py --num_stages 15 --num_users 100 --num_items 20 --d 5 --m 5 --gamma 0.2 --delta 0.1 --num_seeds 60 --detect_cluster 0
-
-For clustering accuracy:
-python3 main.py --num_stages 16 --num_users 100 --num_items 20 --d 5 --m 5 --gamma 0.27 --delta 0.1 --num_seeds 60 --detect_cluster 1
-
+In this repository, we update to a simpler version of LOCB with two processed datasets, yelp and movielens, where the features are extracted by SVD. 
 
 ### Parameters
 
